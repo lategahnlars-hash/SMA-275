@@ -1,0 +1,34 @@
+name: SMA-Alarm
+
+on:
+  schedule:
+    # Mo-Fr 17:30 UTC = 18:30 (Winter) bzw. 19:30 (Sommer) deutscher Zeit, nach Börsenschluss
+    - cron: "30 17 * * 1-5"
+  workflow_dispatch: {}   # erlaubt manuelles Starten per Knopfdruck
+
+permissions:
+  contents: write   # nötig, damit der letzte Zustand (sma_state.json) gespeichert werden kann
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install yfinance pandas
+
+      - name: SMA prüfen
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python sma_alarm.py
+
+      - name: Zustand speichern
+        run: |
+          git config user.name "sma-bot"
+          git config user.email "sma-bot@users.noreply.github.com"
+          git add sma_state.json || true
+          git diff --cached --quiet || (git commit -m "SMA-Zustand aktualisiert" && git push)
