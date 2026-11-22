@@ -24,7 +24,7 @@ jobs:
       - name: SMA prüfen
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python sma_alarm.py --test
+        run: python sma_alarm.py
 
       - name: Zustand speichern
         run: |
