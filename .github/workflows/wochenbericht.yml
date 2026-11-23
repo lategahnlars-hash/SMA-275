@@ -1,0 +1,24 @@
+name: SMA-Wochenbericht
+
+on:
+  schedule:
+    # Freitag 18:00 UTC = 19:00 (Winter) bzw. 20:00 (Sommer) deutscher Zeit
+    - cron: "0 18 * * 5"
+  workflow_dispatch: {}   # erlaubt manuelles Starten zum Testen
+
+jobs:
+  bericht:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install yfinance pandas
+
+      - name: Wochenbericht senden
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python sma_alarm.py --wochenbericht
