@@ -14,6 +14,10 @@ Test:           python sma_alarm.py --test      (schickt eine Testnachricht)
 Status:         python sma_alarm.py --status    (zeigt Kurs/SMA, ohne zu melden)
 Normaler Lauf:  python sma_alarm.py             (einmal pro Handelstag nach Börsenschluss)
 
+Zusätzlich gibt es den 2-%-Alarm (BESTAETIGUNG_PROZENT): Er kommt erst, wenn der Kurs den SMA
+gekreuzt hat UND mindestens 2 % auf der neuen Seite liegt. Kehrt der Kurs vorher um, kommt
+kein 2-%-Alarm. Der normale Alarm beim bloßen Kreuzen bleibt davon unabhängig.
+
 Benachrichtigung (mindestens eine einrichten, per Umgebungsvariable):
   NTFY_TOPIC               -> Push aufs Handy über die kostenlose App "ntfy"
                               (Topic frei wählen, schwer erratbar, z. B. "sma275-x7k2p9")
@@ -34,6 +38,7 @@ NAME_UNGEHEBELT = "Amundi MSCI World (ungehebelt)"
 NAME_GEHEBELT = "Amundi MSCI World 2x Leveraged (LVWC)"
 SMA_TAGE = 275
 BAND_PROZENT = 0.0                # z. B. 1.0 = Wechsel erst bei 1 % Abstand zum SMA (weniger Fehlsignale)
+BESTAETIGUNG_PROZENT = 2.0        # 2-%-Alarm: Kurs muss nach dem Kreuzen mind. 2 % über/unter dem SMA liegen (0 = aus)
 STATE_FILE = Path(__file__).with_name("sma_state.json")
 # -----------------------------------------------
 
@@ -68,14 +73,16 @@ def bestimme_zustand(close, sma_tage=SMA_TAGE, band_prozent=BAND_PROZENT, vorher
 
 
 def lade_zustand():
+    """Gibt (zustand, bestaetigter_zustand) zurück."""
     try:
-        return json.loads(STATE_FILE.read_text()).get("zustand")
+        d = json.loads(STATE_FILE.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
-        return None
+        return None, None
+    return d.get("zustand"), d.get("bestaetigt")
 
 
-def speichere_zustand(zustand):
-    STATE_FILE.write_text(json.dumps({"zustand": zustand}))
+def speichere_zustand(zustand, bestaetigt):
+    STATE_FILE.write_text(json.dumps({"zustand": zustand, "bestaetigt": bestaetigt}))
 
 
 def sende_ntfy(titel, text):
@@ -134,6 +141,22 @@ def nachricht(zustand, kurs, sma):
     return titel, text
 
 
+def bestaetigung_nachricht(zustand, kurs, sma):
+    abstand = (kurs / sma - 1) * 100
+    if zustand == UEBER:
+        titel = f"SMA{SMA_TAGE}: 2-%-Alarm, Kurs mehr als {BESTAETIGUNG_PROZENT:g} % ÜBER dem SMA"
+        ziel = NAME_GEHEBELT
+    else:
+        titel = f"SMA{SMA_TAGE}: 2-%-Alarm, Kurs mehr als {BESTAETIGUNG_PROZENT:g} % UNTER dem SMA"
+        ziel = NAME_UNGEHEBELT
+    text = (
+        f"{SIGNAL_TICKER}: Schlusskurs {kurs:.2f}, SMA{SMA_TAGE} {sma:.2f} ({abstand:+.2f} %).\n"
+        f"Der SMA wurde gekreuzt und der Abstand von {BESTAETIGUNG_PROZENT:g} % ist erfüllt.\n"
+        f"Laut Strategie mit Bestätigung: {ziel}."
+    )
+    return titel, text
+
+
 def main():
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
     if arg == "--test":
@@ -141,21 +164,41 @@ def main():
         return
 
     close = hole_kurse(SIGNAL_TICKER)
-    vorher = lade_zustand()
+    vorher, best_vorher = lade_zustand()
     zustand, kurs, sma = bestimme_zustand(close, vorher=vorher)
+    abstand = (kurs / sma - 1) * 100
+
+    # 2-%-Zustand: wechselt erst, wenn der Kurs 2 % auf der anderen Seite liegt.
+    # Beim ersten Lauf (oder nach dem Update) startet er ohne Alarm im aktuellen Zustand.
+    if BESTAETIGUNG_PROZENT > 0:
+        bestaetigt, _, _ = bestimme_zustand(
+            close, band_prozent=BESTAETIGUNG_PROZENT, vorher=best_vorher or zustand
+        )
+    else:
+        bestaetigt = None
 
     if arg == "--status":
-        print(f"{SIGNAL_TICKER}: Kurs {kurs:.2f}, SMA{SMA_TAGE} {sma:.2f}, Zustand {zustand}")
+        print(f"{SIGNAL_TICKER}: Kurs {kurs:.2f}, SMA{SMA_TAGE} {sma:.2f}, "
+              f"Abstand {abstand:+.2f} %, Zustand {zustand}, 2-%-Zustand {bestaetigt}")
         return
 
+    meldung = False
     if zustand != vorher:
         titel, text = nachricht(zustand, kurs, sma)
         if vorher is None:
             titel = "Start: " + titel
         benachrichtige(titel, text)
-        speichere_zustand(zustand)
-    else:
-        print(f"Kein Wechsel ({zustand}): Kurs {kurs:.2f}, SMA{SMA_TAGE} {sma:.2f}")
+        meldung = True
+
+    if best_vorher is not None and bestaetigt is not None and bestaetigt != best_vorher:
+        benachrichtige(*bestaetigung_nachricht(bestaetigt, kurs, sma))
+        meldung = True
+
+    if not meldung:
+        print(f"Kein Wechsel ({zustand}, 2-%-Zustand {bestaetigt}): "
+              f"Kurs {kurs:.2f}, SMA{SMA_TAGE} {sma:.2f} ({abstand:+.2f} %)")
+
+    speichere_zustand(zustand, bestaetigt)
 
 
 if __name__ == "__main__":
