@@ -12,6 +12,7 @@ Das Signal wird auf dem UNGEHEBELTEN ETF berechnet (SIGNAL_TICKER).
 Installation:   pip install yfinance pandas
 Test:           python sma_alarm.py --test      (schickt eine Testnachricht)
 Status:         python sma_alarm.py --status    (zeigt Kurs/SMA, ohne zu melden)
+Wochenbericht:  python sma_alarm.py --wochenbericht   (schickt Kurs im Vergleich zum SMA)
 Normaler Lauf:  python sma_alarm.py             (einmal pro Handelstag nach Börsenschluss)
 
 Zusätzlich gibt es den 2-%-Alarm (BESTAETIGUNG_PROZENT): Er kommt erst, wenn der Kurs den SMA
@@ -157,6 +158,23 @@ def bestaetigung_nachricht(zustand, kurs, sma):
     return titel, text
 
 
+def wochenbericht(close, zustand, bestaetigt, kurs, sma):
+    abstand = (kurs / sma - 1) * 100
+    datum = close.index[-1].strftime("%d.%m.%Y")
+    seite = "ÜBER" if kurs >= sma else "UNTER"
+    namen = {UEBER: NAME_GEHEBELT, UNTER: NAME_UNGEHEBELT}
+    titel = f"SMA{SMA_TAGE} Wochenbericht: Kurs {seite} dem Durchschnitt"
+    zeilen = [
+        f"{SIGNAL_TICKER}, Schlusskurs vom {datum}: {kurs:.2f}",
+        f"SMA{SMA_TAGE}: {sma:.2f}",
+        f"Abstand: {abstand:+.2f} %",
+        f"Laut Strategie (Kreuzen des SMA): {namen[zustand]}",
+    ]
+    if bestaetigt:
+        zeilen.append(f"Mit {BESTAETIGUNG_PROZENT:g} %-Bestätigung: {namen[bestaetigt]}")
+    return titel, "\n".join(zeilen)
+
+
 def main():
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
     if arg == "--test":
@@ -176,6 +194,10 @@ def main():
         )
     else:
         bestaetigt = None
+
+    if arg == "--wochenbericht":  # ändert den gespeicherten Zustand nicht
+        benachrichtige(*wochenbericht(close, zustand, bestaetigt, kurs, sma))
+        return
 
     if arg == "--status":
         print(f"{SIGNAL_TICKER}: Kurs {kurs:.2f}, SMA{SMA_TAGE} {sma:.2f}, "
