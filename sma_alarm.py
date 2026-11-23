@@ -175,6 +175,22 @@ def wochenbericht(close, zustand, bestaetigt, kurs, sma):
     return titel, "\n".join(zeilen)
 
 
+def start_zeile(bestaetigt, kurs, sma):
+    """Zusatzzeile der Startnachricht: in welchem Zustand der 2-%-Alarm beginnt."""
+    b = BESTAETIGUNG_PROZENT
+    abstand = abs(kurs / sma - 1) * 100
+    if bestaetigt == UEBER:
+        seite, gegen, schwelle = "ÜBER", "UNTER", sma * (1 - b / 100)
+    else:
+        seite, gegen, schwelle = "UNTER", "ÜBER", sma * (1 + b / 100)
+    if abstand >= b:
+        lage = f"Der Kurs liegt mehr als {b:g} % {seite} dem SMA."
+    else:
+        lage = (f"Der Kurs liegt noch innerhalb von {b:g} % um den SMA, "
+                f"der 2-%-Alarm startet im Zustand {seite}.")
+    return f"{lage}\nNächster 2-%-Alarm bei mehr als {b:g} % {gegen} dem SMA (Kurs ca. {schwelle:.2f})."
+
+
 def main():
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
     if arg == "--test":
@@ -209,6 +225,8 @@ def main():
         titel, text = nachricht(zustand, kurs, sma)
         if vorher is None:
             titel = "Start: " + titel
+            if bestaetigt:
+                text += "\n" + start_zeile(bestaetigt, kurs, sma)
         benachrichtige(titel, text)
         meldung = True
 
