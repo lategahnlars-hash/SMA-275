@@ -5,7 +5,7 @@ SMA-Alarm: meldet dich, wenn der Schlusskurs den gleitenden Durchschnitt
 
 Annahme der Strategie (bitte an deine Regeln anpassen):
   Kurs ÜBER dem SMA  -> gehebelter ETF (Amundi MSCI World 2x Leveraged)
-  Kurs UNTER dem SMA -> ungehebelter ETF (Amundi MSCI World)
+  Kurs UNTER dem SMA -> ungehebelter ETF (Scalable MSCI AC World Xtrackers, LU2903252349)
 
 Das Signal wird auf dem UNGEHEBELTEN ETF berechnet (SIGNAL_TICKER).
 
@@ -34,8 +34,8 @@ from email.message import EmailMessage
 from pathlib import Path
 
 # ---------------- Einstellungen ----------------
-SIGNAL_TICKER = "CW8.PA"          # Amundi MSCI World (Euronext Paris), Yahoo-Symbol bitte prüfen
-NAME_UNGEHEBELT = "Amundi MSCI World (ungehebelt)"
+SIGNAL_TICKER = "SCWX.DE"         # Scalable MSCI AC World Xtrackers (Xetra, EUR), Yahoo-Symbol bitte prüfen
+NAME_UNGEHEBELT = "Scalable MSCI AC World Xtrackers (SCWX, ungehebelt)"
 NAME_GEHEBELT = "Amundi MSCI World 2x Leveraged (LVWC)"
 SMA_TAGE = 275
 BAND_PROZENT = 0.0                # z. B. 1.0 = Wechsel erst bei 1 % Abstand zum SMA (weniger Fehlsignale)
