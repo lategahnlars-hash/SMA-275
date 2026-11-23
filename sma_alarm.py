@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 SMA-Alarm: meldet dich, wenn der Schlusskurs den gleitenden Durchschnitt
-(Standard: 275 Handelstage) über- oder unterschreitet.
+(Standard: 250 Handelstage) über- oder unterschreitet.
 
 Annahme der Strategie (bitte an deine Regeln anpassen):
   Kurs ÜBER dem SMA  -> gehebelter ETF (Amundi MSCI World 2x Leveraged)
@@ -37,7 +37,7 @@ from pathlib import Path
 SIGNAL_TICKER = "SCWX.DE"         # Scalable MSCI AC World Xtrackers (Xetra, EUR), Yahoo-Symbol bitte prüfen
 NAME_UNGEHEBELT = "Scalable MSCI AC World Xtrackers (SCWX, ungehebelt)"
 NAME_GEHEBELT = "Amundi MSCI World 2x Leveraged (LVWC)"
-SMA_TAGE = 275
+SMA_TAGE = 250
 BAND_PROZENT = 0.0                # z. B. 1.0 = Wechsel erst bei 1 % Abstand zum SMA (weniger Fehlsignale)
 BESTAETIGUNG_PROZENT = 2.0        # 2-%-Alarm: Kurs muss nach dem Kreuzen mind. 2 % über/unter dem SMA liegen (0 = aus)
 STATE_FILE = Path(__file__).with_name("sma_state.json")
